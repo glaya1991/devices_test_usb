@@ -9,10 +9,18 @@ import serial
 import time
 import os
 import random
+import threading
 
 # py-files
 import  tests_eg
 
+# ----- Test function ------------------------- #
+def func_print():
+    i = 0
+    while True:
+        print('func_print: %i' % i)
+        i += 1
+        time.sleep(2)
 
 # ----- Send/receive function: MODBUS --------- #
 def send_recv_msg(msg):
@@ -89,10 +97,39 @@ def send_recv_msg(msg):
 
     return
 
+# ----- Send function: MODBUS --------- #
+def send_msg(msg):
+    '''
+    in1=input(">> data TX: ")
+
+    # linux
+    #ser.write(in1.encode()) #linux
+
+    # windows
+    in2 = in1.split(' ')
+    in3 = []
+    for val in in2:
+        in3.append(int(val, 16))
+    ser.write(in3)
+    '''
+
+    query = [ord(i) for i in msg]
+
+    # print sending message
+    # in hex
+    #print(''.join('{:02X} '.format((val)) for val in query))
+    # string
+    print(">> ", msg)
+    ser.write(query)
+
+    return
+
+
+# ----- Receive Function: MODBUS ------------ #
 def recv_msg():
     n = ser.in_waiting
     delay_cnt = 0
-    while n == 0 and delay_cnt < 40:
+    while n == 0 and delay_cnt < 10:
         n = ser.in_waiting
         delay_cnt += 1
         time.sleep(tdelay)
@@ -100,7 +137,7 @@ def recv_msg():
     out = []
     delay_cnt = 0
     # print(n)
-    while (n != 0) and delay_cnt < 40:
+    while (n != 0) and delay_cnt < 10:
         out.extend(ser.read(n))
         delay_cnt += 1
         time.sleep(tdelay)
@@ -137,6 +174,11 @@ def recv_msg():
 
     return
 
+def func_recv():
+    while True:
+        recv_msg()
+    return
+
 # ------------------------------------- #
 #        MAIN                           #
 # ------------------------------------- #
@@ -152,7 +194,6 @@ mode = 'hex'
 dict_mode = {'1': 'hex', '2': 'dec', '3': 'sym'}
 
 tdelay = 0.001
-_wr_en = 0
 
 # available com ports
 comlist = serial.tools.list_ports.comports()
@@ -193,8 +234,7 @@ if in1 == 'q':
 
 
 # ----- Create file (if need!) ---------- #
-
-wr_en = _wr_en
+wr_en = 0
 # write rx data:
 if wr_en == 1:
     t0 = time.localtime()
@@ -234,6 +274,11 @@ print(ser.name)
 n = ser.in_waiting
 out = ser.read(n)  # first read???
 
+thread_print = threading.Thread(target=func_print)
+# thread_print.start()
+
+thread_recv = threading.Thread(target=func_recv)
+thread_recv.start()
 
 # ----- main loop --------------------- #
 
@@ -269,17 +314,16 @@ while ch_exit == "n":
     for t in range(msg_times):
         for i in range(len_msg):
             time.sleep(1)
-            send_recv_msg(msg[i])
-            for j in range(4):
-                recv_msg()
+            send_msg(msg[i])
 
+    time.sleep(1)
     ch_exit = input("\r\nExit: y/n?  ")
 
 
-ch_exit = "n"
-while ch_exit == "n":
-    recv_msg()
-    #pass
+# ch_exit = "n"
+# while ch_exit == "n":
+#     recv_msg()
+#     #pass
 
 
 print('Exit: Ok!')
